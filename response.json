@@ -1,0 +1,10 @@
+{
+  "transaction": {
+    "amount": 22000,
+    "order_id": "240910HDE7C9",
+    "project": "reyz",
+    "status": "completed",
+    "payment_method": "qris",
+    "completed_at": "2024-09-10T08:07:02.819+07:00"
+  }
+}
