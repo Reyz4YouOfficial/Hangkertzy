@@ -1,9 +1,13 @@
 <?php
-// Masukkan API Key Anda di sini (Aman karena tidak terlihat di browser)
-$apiKey = "URaa2XAwEHwXrO0LTZcFUfLBozUQqdON";
+header('Content-Type: application/json');
 
-// Ambil data dari request frontend
-$input = json_decode(file_get_contents('php://input'), true);
+// 1. Pengaturan Data (Ganti slug dengan milik Anda)
+$api_key = "URaa2XAwEHwXrO0LTZcFUfLBozUQqdON";
+$slug    = "reyz"; // <--- GANTI INI dengan slug project Pak Kasir Anda
+$order_id = "INV-" . time();
+
+// 2. Ambil input dari Frontend
+$input  = json_decode(file_get_contents('php://input'), true);
 $amount = $input['amount'] ?? 0;
 
 if ($amount < 1000) {
@@ -11,28 +15,23 @@ if ($amount < 1000) {
     exit;
 }
 
-// Data transaksi
-$data = [
-    'amount' => (int)$amount,
-    'reference_id' => 'INV-' . time(),
-    'description' => 'Pembayaran QRIS',
-];
+// 3. Susun URL sesuai format yang Anda berikan
+$url = "https://app.pakasir.com/api/transactiondetail?project=$slug&amount=$amount&order_id=$order_id&api_key=$api_key";
 
-// Inisialisasi CURL untuk panggil API Pak Kasir
-$ch = curl_init('https://api.pakkasir.id/v1/transaction/qris'); // Ganti URL jika ada di dokumentasi
+// 4. Ambil data menggunakan cURL
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json',
-    'Authorization: Bearer ' . $apiKey
-]);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Lewati verifikasi SSL jika di localhost
 
 $response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, http_code);
+$err = curl_error($ch);
 curl_close($ch);
 
-// Kirim balik hasilnya ke HTML
-header('Content-Type: application/json');
-echo $response;
+if ($err) {
+    echo json_encode(['status' => 'error', 'message' => 'CURL Error: ' . $err]);
+} else {
+    // Kirim hasil respon mentah dari Pak Kasir ke Frontend
+    echo $response;
+}
 ?>
