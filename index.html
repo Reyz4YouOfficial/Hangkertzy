@@ -3,66 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembayaran QRIS Pak Kasir</title>
+    <title>Pembayaran DepoDomain</title>
     <style>
-        body { font-family: sans-serif; background: #f8f9fa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .box { background: white; padding: 25px; border-radius: 12px; shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; width: 320px; border: 1px solid #ddd; }
-        #qris-img { width: 200px; height: 200px; margin-top: 15px; display: none; border: 1px solid #eee; }
-        input { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc; }
-        button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .loader { display: none; color: blue; font-size: 14px; margin-top: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        .qris-box { margin-top: 1.5rem; padding: 10px; border: 2px solid #eee; border-radius: 10px; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+        #qris-image { width: 100%; display: none; }
+        input { width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background: #0080ff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        .status { margin-top: 10px; font-size: 0.9rem; color: #555; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h3>Pembayaran QRIS</h3>
-    <input type="number" id="amount" placeholder="Masukkan Nominal">
-    <button onclick="buatQRIS()">Tampilkan QRIS</button>
+<div class="card">
+    <h2 style="margin-top:0; color:#333;">Pak Kasir Pay</h2>
+    <p style="color:#777; font-size: 0.9rem;">Project: <strong>DepoDomain</strong></p>
     
-    <div id="loader" class="loader">Memproses transaksi...</div>
-    <center><img src="" id="qris-img" alt="QRIS"></center>
-    <p id="msg" style="font-size: 13px; margin-top: 10px;"></p>
+    <input type="number" id="amount" placeholder="Nominal Bayar (Rp)">
+    <button id="btn-proses" onclick="bayar()">Buat QRIS</button>
+
+    <div class="qris-box" id="qris-container">
+        <span id="loading-text">QRIS muncul di sini</span>
+        <img src="" id="qris-image" alt="QRIS">
+    </div>
+    <p id="info" class="status"></p>
 </div>
 
 <script>
-    async function buatQRIS() {
-        const amount = document.getElementById('amount').value;
-        const qrisImg = document.getElementById('qris-img');
-        const loader = document.getElementById('loader');
-        const msg = document.getElementById('msg');
+async function bayar() {
+    const amount = document.getElementById('amount').value;
+    const btn = document.getElementById('btn-proses');
+    const qrisImg = document.getElementById('qris-image');
+    const loadingText = document.getElementById('loading-text');
+    const info = document.getElementById('info');
 
-        if(amount < 1000) return alert("Minimal Rp 1.000");
+    if (amount < 1000) return alert("Minimal pembayaran Rp 1.000");
 
-        loader.style.display = "block";
-        qrisImg.style.display = "none";
-        msg.innerText = "";
+    // UI Loading
+    btn.disabled = true;
+    loadingText.innerText = "Menghubungi Pak Kasir...";
+    qrisImg.style.display = "none";
+    info.innerText = "";
 
-        try {
-            // Memanggil file PHP lokal, bukan langsung ke API luar (Menghindari Gagal Koneksi/CORS)
-            const response = await fetch('bayar.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: amount })
-            });
+    try {
+        const response = await fetch('bayar.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: amount })
+        });
 
-            const resData = await response.json();
-            loader.style.display = "none";
+        const res = await response.json();
+        
+        // Cek field 'data' -> 'url_qris' sesuai format umum Pak Kasir
+        // Jika struktur JSON berbeda, sesuaikan 'res.data.url_qris' di bawah ini
+        const qrisUrl = res.url_qris || (res.data && res.data.url_qris);
 
-            // Sesuaikan "qris_url" dengan nama field di JSON Pak Kasir
-            if (resData.qris_url || resData.data?.qris_url) {
-                qrisImg.src = resData.qris_url || resData.data.qris_url;
-                qrisImg.style.display = "block";
-                msg.innerHTML = "Silakan Scan & Bayar";
-            } else {
-                msg.innerText = "Gagal: " + (resData.message || "Respon API tidak sesuai");
-            }
-        } catch (e) {
-            loader.style.display = "none";
-            msg.innerText = "Gagal koneksi ke server.";
-            console.error(e);
+        if (qrisUrl) {
+            loadingText.style.display = "none";
+            qrisImg.src = qrisUrl;
+            qrisImg.style.display = "block";
+            info.innerHTML = "<b style='color:green;'>QRIS Berhasil Dibuat!</b><br>Silakan scan untuk membayar.";
+        } else {
+            throw new Error(res.message || "Gagal mendapatkan data QRIS");
         }
+    } catch (err) {
+        loadingText.innerText = "Gagal memuat QRIS";
+        info.innerText = err.message;
+        console.error(err);
+    } finally {
+        btn.disabled = false;
     }
+}
 </script>
 
 </body>
